@@ -1,0 +1,30 @@
+def DCA1000_1642(filename, nums, numbits, numrx, numlanes, numtx):
+    # adcData = np.fromstring(filename,dtype=np.int16)
+    # adcData = int(filename.encode('hex'), 16)
+    # adcData = int.from_bytes(filename, byteorder='big')
+    file0 = open(filename, 'rb')
+    adcData = np.fromfile(file0, dtype=np.int16)
+    #print(adcData.size)
+    #file0 = open(filename, 'rb')
+    #adcData = np.fromfile(file0, dtype=np.int16, count = SENSOR_BYTES_PER_PROCESSING)
+    #print(SENSOR_BYTES_PER_PROCESSING)
+    fileSize = adcData.size
+    numChirps = int(fileSize / 2 / nums / numrx / numtx)
+    LVDS = np.zeros((1, int(fileSize / 2)), dtype=complex)  # type: ndarray
+    steps = 4
+    LVDS[0, 0::numlanes] = adcData[0::steps] + adcData[2::steps] * 1j
+    LVDS[0, 1::numlanes] = adcData[1::steps] + adcData[3::steps] * 1j
+    LVDS = LVDS.reshape(nums * numrx, numChirps * numtx, order='F').copy()
+    LVDS = LVDS.transpose()
+    adcData_f = np.zeros((numrx * numtx, numChirps * nums), dtype=complex)
+    adcData_ST = np.zeros((numrx * numtx * nums, numChirps), dtype=complex)
+    for dim in range(0, numtx):
+        for row in range(0, numrx):
+            for col in range(0, numChirps):
+                adcData_f[row + dim * numrx, col * nums: (col + 1) * nums] \
+                    = LVDS[col * numtx + dim, row * nums: (row + 1) * nums]
+    adcData_T = adcData_f[0, :].reshape((nums, numChirps), order='F')
+    for dim2 in range(0, numtx * numrx):
+        adcData_ST[dim2 * nums:(dim2 + 1) * nums, :] = adcData_f[dim2, :].reshape((nums, numChirps), order='F')
+
+    return adcData_ST, adcData_T, adcData_f, LVDS
